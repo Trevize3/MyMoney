@@ -28,7 +28,7 @@ class App {
         this.projects = [];
         this.events = [];
         this.userType = 'individual'; // or 'business'
-        this.isPrivacyMode = false;
+        this.isPrivacyMode = true;
         this.selectedEventIds = new Set();
         this.selectedProjectIds = new Set();
         this.projectFilterIds = new Set();
@@ -67,7 +67,7 @@ class App {
                 );
             });
             this.userType = data.userType || 'individual';
-            this.isPrivacyMode = data.isPrivacyMode || false;
+            this.isPrivacyMode = typeof data.isPrivacyMode === 'boolean' ? data.isPrivacyMode : true;
             this.projectFilterIds = new Set(data.projectFilterIds || []);
 
             if (data.theme === 'dark') {
@@ -253,17 +253,17 @@ class App {
 
         if (this.isPrivacyMode) {
             totalBalanceEl.textContent = '*****';
+            filteredBalanceEl.textContent = '*****';
             incomeExpenseWrapper.classList.add('hidden');
             privacyIcon.textContent = 'visibility_off';
         } else {
             totalBalanceEl.textContent = `€${totalBalance.toFixed(2)}`;
+            filteredBalanceEl.textContent = `€${filteredBalance.toFixed(2)}`;
             totalIncomeEl.textContent = `€${totalIncome.toFixed(2)}`;
             totalExpensesEl.textContent = `€${totalExpenses.toFixed(2)}`;
             incomeExpenseWrapper.classList.remove('hidden');
             privacyIcon.textContent = 'visibility';
         }
-
-        filteredBalanceEl.textContent = `€${filteredBalance.toFixed(2)}`;
 
         this.renderUnpaidExpenses();
         this.renderEventsList();

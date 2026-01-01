@@ -3,7 +3,7 @@ from playwright.async_api import async_playwright
 import os
 
 PORT = 8000
-SCREENSHOT_DIR = "/home/jules/verification"
+SCREENSHOT_DIR = "verifications"
 
 # Ensure the verification directory exists
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
