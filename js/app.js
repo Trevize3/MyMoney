@@ -141,8 +141,19 @@ class App {
         document.getElementById('cancel-project-btn').addEventListener('click', () => this.navigateTo('projects-screen'));
         document.getElementById('back-to-projects-btn').addEventListener('click', () => this.navigateTo('projects-screen'));
 
+        // Dashboard links
+        document.getElementById('dashboard-screen').addEventListener('click', this.handleDashboardLink.bind(this));
+
         // Profile screen
         document.getElementById('user-type').addEventListener('change', this.handleUserTypeChange.bind(this));
+    }
+
+    handleDashboardLink(event) {
+        const link = event.target.closest('.dashboard-link');
+        if (link && link.dataset.eventId) {
+            const eventId = parseInt(link.dataset.eventId);
+            this.openEventForm(eventId);
+        }
     }
 
     navigateTo(screenId) {
@@ -284,7 +295,8 @@ class App {
         unpaidEvents.forEach(event => {
             const project = this.projects.find(p => p.id === event.projectId);
             const eventEl = document.createElement('div');
-            eventEl.className = 'bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm flex justify-between items-center';
+            eventEl.className = 'dashboard-link cursor-pointer bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm flex justify-between items-center';
+            eventEl.dataset.eventId = event.id;
             eventEl.innerHTML = `
                 <div>
                     <p class="font-semibold">${project.icon} ${project.name} - ${event.location}</p>
@@ -317,11 +329,12 @@ class App {
         unpaidExpenses.forEach(item => {
             const project = this.projects.find(p => p.id === item.event.projectId);
             const expenseEl = document.createElement('div');
-            expenseEl.className = 'bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm flex justify-between items-center';
+            expenseEl.className = 'dashboard-link cursor-pointer bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm flex justify-between items-center';
+            expenseEl.dataset.eventId = item.event.id;
             expenseEl.innerHTML = `
                 <div>
                     <p class="font-semibold">${item.description}</p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">${project.icon} ${project.name} - ${item.event.date.toLocaleDateString('it-IT')}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">${project.icon} ${project.name} - ${item.event.location} - ${item.event.date.toLocaleDateString('it-IT')}</p>
                 </div>
                 <div class="text-red-500 font-bold">€${item.amount.toFixed(2)}</div>
             `;
