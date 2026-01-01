@@ -18,7 +18,7 @@ class Event {
         this.compensation = compensation;
         this.compensationPaid = compensationPaid;
         this.compensationInvoiced = compensationInvoiced;
-        this.expenses = expenses; // [{ amount: 100, description: 'Gas' }]
+        this.expenses = expenses; // [{ amount: 100, description: 'Gas', pagata: false }]
         this.notes = notes;
     }
 }
@@ -56,10 +56,16 @@ class App {
         if (dataString) {
             const data = JSON.parse(dataString);
             this.projects = data.projects.map(p => new Project(p.id, p.name, p.icon, p.description));
-            this.events = data.events.map(e => new Event(
-                e.id, e.projectId, new Date(e.date), e.location, e.compensation,
-                e.compensationPaid, e.compensationInvoiced, e.expenses, e.notes
-            ));
+            this.events = data.events.map(e => {
+                const expenses = (e.expenses || []).map(exp => ({
+                    ...exp,
+                    pagata: exp.pagata || false
+                }));
+                return new Event(
+                    e.id, e.projectId, new Date(e.date), e.location, e.compensation,
+                    e.compensationPaid, e.compensationInvoiced, expenses, e.notes
+                );
+            });
             this.userType = data.userType || 'individual';
             this.isPrivacyMode = data.isPrivacyMode || false;
             this.projectFilterIds = new Set(data.projectFilterIds || []);
@@ -97,10 +103,10 @@ class App {
         ];
 
         this.events = [
-            new Event(1, 1, new Date('2024-05-10'), 'New York', 1500, true, true, [{ amount: 200, description: 'Viaggio' }]),
-            new Event(2, 1, new Date('2024-05-15'), 'Londra', 2000, false, false, [{ amount: 300, description: 'Hotel' }]),
-            new Event(3, 2, new Date('2024-05-20'), 'Online', 500, true, true),
-            new Event(4, 3, new Date('2024-04-01'), 'US Tour', 10000, true, true, [{ amount: 5000, description: 'Noleggio bus' }]),
+            new Event(1, 1, new Date('2024-05-10'), 'New York', 1500, true, true, [{ amount: 200, description: 'Viaggio', pagata: true }]),
+            new Event(2, 1, new Date('2024-05-15'), 'Londra', 2000, false, false, [{ amount: 300, description: 'Hotel', pagata: false }]),
+            new Event(3, 2, new Date('2024-05-20'), 'Online', 500, true, true, []),
+            new Event(4, 3, new Date('2024-04-01'), 'US Tour', 10000, true, true, [{ amount: 5000, description: 'Noleggio bus', pagata: true }]),
         ];
     }
 
@@ -238,11 +244,11 @@ class App {
         const filteredEvents = this.getFilteredEvents();
 
         const totalIncome = this.events.filter(e => e.compensationPaid).reduce((sum, event) => sum + event.compensation, 0);
-        const totalExpenses = this.events.reduce((sum, event) => sum + event.expenses.reduce((s, exp) => s + exp.amount, 0), 0);
+        const totalExpenses = this.events.reduce((sum, event) => sum + event.expenses.filter(ex => ex.pagata).reduce((s, exp) => s + exp.amount, 0), 0);
         const totalBalance = totalIncome - totalExpenses;
 
         const filteredIncome = filteredEvents.filter(e => e.compensationPaid).reduce((sum, event) => sum + event.compensation, 0);
-        const filteredExpenses = filteredEvents.reduce((sum, event) => sum + event.expenses.reduce((s, exp) => s + exp.amount, 0), 0);
+        const filteredExpenses = filteredEvents.reduce((sum, event) => sum + event.expenses.filter(ex => ex.pagata).reduce((s, exp) => s + exp.amount, 0), 0);
         const filteredBalance = filteredIncome - filteredExpenses;
 
         if (this.isPrivacyMode) {
@@ -259,7 +265,41 @@ class App {
 
         filteredBalanceEl.textContent = `€${filteredBalance.toFixed(2)}`;
 
+        this.renderUnpaidExpenses();
         this.renderEventsList();
+    }
+
+    renderUnpaidExpenses() {
+        const unpaidListEl = document.getElementById('unpaid-expenses-list');
+        unpaidListEl.innerHTML = '';
+
+        const unpaidExpenses = [];
+        this.events.forEach(event => {
+            event.expenses.forEach(expense => {
+                if (!expense.pagata) {
+                    unpaidExpenses.push({ ...expense, event });
+                }
+            });
+        });
+
+        if (unpaidExpenses.length === 0) {
+            unpaidListEl.innerHTML = `<p class="text-sm text-gray-500 dark:text-gray-400">Nessuna spesa da pagare.</p>`;
+            return;
+        }
+
+        unpaidExpenses.forEach(item => {
+            const project = this.projects.find(p => p.id === item.event.projectId);
+            const expenseEl = document.createElement('div');
+            expenseEl.className = 'bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm flex justify-between items-center';
+            expenseEl.innerHTML = `
+                <div>
+                    <p class="font-semibold">${item.description}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">${project.icon} ${project.name} - ${item.event.date.toLocaleDateString('it-IT')}</p>
+                </div>
+                <div class="text-red-500 font-bold">€${item.amount.toFixed(2)}</div>
+            `;
+            unpaidListEl.appendChild(expenseEl);
+        });
     }
 
 
@@ -296,7 +336,8 @@ class App {
         const selectedTotalEl = document.getElementById('selected-total');
         const total = Array.from(this.selectedEventIds).reduce((sum, eventId) => {
             const event = this.events.find(e => e.id === eventId);
-            const eventBalance = event.compensation - event.expenses.reduce((s, exp) => s + exp.amount, 0);
+            const eventExpenses = event.expenses.filter(e => e.pagata).reduce((s, exp) => s + exp.amount, 0);
+            const eventBalance = event.compensation - eventExpenses;
             return sum + eventBalance;
         }, 0);
         selectedTotalEl.textContent = `€${total.toFixed(2)}`;
@@ -308,7 +349,8 @@ class App {
 
         this.getFilteredEvents().forEach(event => {
             const project = this.projects.find(p => p.id === event.projectId);
-            const eventBalance = event.compensation - event.expenses.reduce((s, exp) => s + exp.amount, 0);
+            const eventExpenses = event.expenses.filter(e => e.pagata).reduce((s, exp) => s + exp.amount, 0);
+            const eventBalance = event.compensation - eventExpenses;
             const isPaid = event.compensationPaid;
 
             const eventItem = document.createElement('div');
@@ -379,14 +421,18 @@ class App {
         this.navigateTo('event-detail-screen');
     }
 
-    addExpenseInput(expense = { description: '', amount: '' }) {
+    addExpenseInput(expense = { description: '', amount: '', pagata: false }) {
         const expensesList = document.getElementById('expenses-list');
         const expenseItem = document.createElement('div');
-        expenseItem.className = 'flex items-center space-x-2';
+        expenseItem.className = 'expense-item grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center';
         expenseItem.innerHTML = `
-            <input type="text" value="${expense.description}" class="flex-grow p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600" placeholder="Descrizione">
+            <input type="text" value="${expense.description}" class="p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600" placeholder="Descrizione">
             <input type="number" value="${expense.amount}" class="w-24 p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600" placeholder="0.00">
-            <button type="button" class="text-red-500 remove-expense-btn">&times;</button>
+            <label class="flex items-center space-x-1 text-sm">
+                <input type="checkbox" class="h-4 w-4 rounded" ${expense.pagata ? 'checked' : ''}>
+                <span>Pagata</span>
+            </label>
+            <button type="button" class="text-red-500 remove-expense-btn text-xl font-bold">&times;</button>
         `;
         expensesList.appendChild(expenseItem);
 
@@ -399,11 +445,12 @@ class App {
         e.preventDefault();
         const eventId = document.getElementById('event-id').value;
         const expenses = [];
-        document.querySelectorAll('#expenses-list .flex').forEach(item => {
+        document.querySelectorAll('#expenses-list .expense-item').forEach(item => {
             const description = item.querySelector('input[type="text"]').value;
             const amount = parseFloat(item.querySelector('input[type="number"]').value);
+            const pagata = item.querySelector('input[type="checkbox"]').checked;
             if (description && !isNaN(amount)) {
-                expenses.push({ description, amount });
+                expenses.push({ description, amount, pagata });
             }
         });
 
@@ -450,7 +497,7 @@ class App {
         this.projects.forEach(project => {
             const projectEvents = this.events.filter(e => e.projectId === project.id);
             const income = projectEvents.filter(e => e.compensationPaid).reduce((sum, e) => sum + e.compensation, 0);
-            const expenses = projectEvents.reduce((sum, e) => sum + e.expenses.reduce((s, exp) => s + exp.amount, 0), 0);
+            const expenses = projectEvents.reduce((sum, e) => sum + e.expenses.filter(ex => ex.pagata).reduce((s, exp) => s + exp.amount, 0), 0);
             const balance = income - expenses;
             const isSelected = this.selectedProjectIds.has(project.id);
 
@@ -541,7 +588,7 @@ class App {
         const total = Array.from(this.selectedProjectIds).reduce((sum, projectId) => {
              const projectEvents = this.events.filter(e => e.projectId === projectId);
              const income = projectEvents.filter(e => e.compensationPaid).reduce((s, e) => s + e.compensation, 0);
-             const expenses = projectEvents.reduce((s, e) => s + e.expenses.reduce((expSum, exp) => expSum + exp.amount, 0), 0);
+             const expenses = projectEvents.reduce((s, e) => s + e.expenses.filter(ex => ex.pagata).reduce((expSum, exp) => expSum + exp.amount, 0), 0);
              return sum + (income - expenses);
         }, 0);
         selectedTotalEl.textContent = `€${total.toFixed(2)}`;
