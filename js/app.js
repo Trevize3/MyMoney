@@ -31,6 +31,7 @@ class App {
         this.isPrivacyMode = false;
         this.selectedEventIds = new Set();
         this.selectedProjectIds = new Set();
+        this.projectFilterIds = new Set();
         this.currentScreen = 'dashboard-screen';
         this.init();
     }
@@ -38,14 +39,14 @@ class App {
     saveData() {
         const data = {
             projects: this.projects,
-            // Dates are not directly serializable, convert to ISO string
             events: this.events.map(event => ({
                 ...event,
                 date: event.date.toISOString(),
             })),
             userType: this.userType,
             isPrivacyMode: this.isPrivacyMode,
-            theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+            theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light',
+            projectFilterIds: Array.from(this.projectFilterIds)
         };
         localStorage.setItem('myMoneyData', JSON.stringify(data));
     }
@@ -55,27 +56,25 @@ class App {
         if (dataString) {
             const data = JSON.parse(dataString);
             this.projects = data.projects.map(p => new Project(p.id, p.name, p.icon, p.description));
-            // Convert ISO strings back to Date objects
             this.events = data.events.map(e => new Event(
                 e.id, e.projectId, new Date(e.date), e.location, e.compensation,
                 e.compensationPaid, e.compensationInvoiced, e.expenses, e.notes
             ));
             this.userType = data.userType || 'individual';
             this.isPrivacyMode = data.isPrivacyMode || false;
+            this.projectFilterIds = new Set(data.projectFilterIds || []);
 
-            // Apply theme
             if (data.theme === 'dark') {
                 document.documentElement.classList.add('dark');
             } else {
                 document.documentElement.classList.remove('dark');
             }
-            // Update theme toggle icon text based on the loaded theme
             const icon = document.querySelector('#theme-toggle span');
             icon.textContent = document.documentElement.classList.contains('dark') ? 'light_mode' : 'dark_mode';
 
-            return true; // Data was loaded
+            return true;
         }
-        return false; // No data found
+        return false;
     }
 
     init() {
@@ -83,8 +82,8 @@ class App {
             this.loadSampleData();
         }
         this.setupEventListeners();
+        this.renderProjectFilterCheckboxes();
         this.updateDashboard();
-        this.populateProjectFilter();
         this.renderEventsList();
         this.renderProjectsList();
         document.getElementById('user-type').value = this.userType;
@@ -108,8 +107,11 @@ class App {
     setupEventListeners() {
         document.getElementById('theme-toggle').addEventListener('click', this.toggleTheme.bind(this));
         document.getElementById('privacy-toggle').addEventListener('click', this.togglePrivacyMode.bind(this));
-        document.getElementById('project-filter').addEventListener('change', this.updateDashboard.bind(this));
         document.getElementById('period-filter').addEventListener('change', this.updateDashboard.bind(this));
+
+        // Project Filter Checkboxes (delegated)
+        document.getElementById('project-filter-container').addEventListener('change', this.handleProjectFilterChange.bind(this));
+        document.getElementById('events-project-filter-container').addEventListener('change', this.handleProjectFilterChange.bind(this));
 
         // Navigation
         document.querySelectorAll('.nav-button').forEach(button => {
@@ -166,27 +168,42 @@ class App {
         this.saveData();
     }
 
-    populateProjectFilter() {
-        const projectFilter = document.getElementById('project-filter');
-        projectFilter.innerHTML = '<option value="all">Tutti i Progetti</option>';
-        this.projects.forEach(project => {
-            const option = document.createElement('option');
-            option.value = project.id;
-            option.textContent = project.name;
-            projectFilter.appendChild(option);
+    renderProjectFilterCheckboxes() {
+        const containers = [
+            document.getElementById('project-filter-container'),
+            document.getElementById('events-project-filter-container')
+        ];
+
+        containers.forEach(container => {
+            if (!container) return;
+            container.innerHTML = ''; // Clear existing content
+
+            this.projects.forEach(project => {
+                const label = document.createElement('label');
+                label.className = 'flex items-center space-x-2 text-sm';
+                const isChecked = this.projectFilterIds.has(project.id);
+
+                label.innerHTML = `
+                    <input type="checkbox"
+                           class="project-filter-checkbox h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                           data-project-id="${project.id}"
+                           ${isChecked ? 'checked' : ''}>
+                    <span>${project.icon} ${project.name}</span>
+                `;
+                container.appendChild(label);
+            });
         });
     }
 
     getFilteredEvents() {
-        const selectedProjectId = document.getElementById('project-filter').value;
         const selectedPeriod = document.getElementById('period-filter').value;
         const now = new Date();
 
         let filteredEvents = this.events;
 
         // Filter by project
-        if (selectedProjectId !== 'all') {
-            filteredEvents = filteredEvents.filter(event => event.projectId == selectedProjectId);
+        if (this.projectFilterIds.size > 0) {
+            filteredEvents = filteredEvents.filter(event => this.projectFilterIds.has(event.projectId));
         }
 
         // Filter by period
@@ -410,8 +427,8 @@ class App {
         }
 
         // Reset filters to ensure the new/edited event is visible
-        document.getElementById('project-filter').value = 'all';
         document.getElementById('period-filter').value = 'all';
+        this.projectFilterIds.clear();
 
         this.saveData();
         this.updateDashboard();
@@ -485,8 +502,8 @@ class App {
 
             this.saveData();
             this.renderProjectsList();
-            this.populateProjectFilter(); // Update filters in case a project was removed
-            this.updateDashboard();     // Recalculate dashboard totals
+            this.renderProjectFilterCheckboxes();
+            this.updateDashboard();
         }
     }
 
@@ -568,9 +585,23 @@ class App {
 
         this.saveData();
         this.renderProjectsList();
-        this.populateProjectFilter();
+        this.renderProjectFilterCheckboxes();
         this.updateDashboard();
         this.navigateTo('projects-screen');
+    }
+
+    handleProjectFilterChange(event) {
+        if (event.target.classList.contains('project-filter-checkbox')) {
+            const projectId = parseInt(event.target.dataset.projectId);
+            if (event.target.checked) {
+                this.projectFilterIds.add(projectId);
+            } else {
+                this.projectFilterIds.delete(projectId);
+            }
+            this.saveData();
+            this.renderProjectFilterCheckboxes(); // Keep both filter sections in sync
+            this.updateDashboard();
+        }
     }
 
     handleUserTypeChange(event) {

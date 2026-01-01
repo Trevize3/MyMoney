@@ -57,10 +57,10 @@
                 <h2 class="text-lg font-semibold mb-2">Filtri</h2>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label for="project-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label>
-                        <select id="project-filter" name="project-filter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
-                            <option value="all">Tutti i Progetti</option>
-                        </select>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label>
+                        <div id="project-filter-container" class="mt-1 space-y-2">
+                            <!-- Checkboxes will be dynamically inserted here -->
+                        </div>
                     </div>
                     <div>
                          <label for="period-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Periodo</label>
@@ -83,9 +83,21 @@
 
         <!-- Events List Screen -->
         <main id="events-list-screen" class="hidden">
-             <section class="mb-4">
-                <h2 class="text-xl font-bold mb-4">Eventi</h2>
+            <h2 class="text-xl font-bold mb-4">Eventi</h2>
+
+            <!-- Filters Section -->
+            <section class="mb-6">
+                <h3 class="text-lg font-semibold mb-2">Filtri</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Filtra per Progetto</label>
+                        <div id="events-project-filter-container" class="mt-1 space-y-2">
+                            <!-- Checkboxes will be dynamically inserted here -->
+                        </div>
+                    </div>
+                </div>
             </section>
+
             <section id="events-list" class="space-y-4">
                 <!-- Event items will be dynamically inserted here -->
             </section>
