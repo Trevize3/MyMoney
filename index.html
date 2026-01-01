@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="it" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Money</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link href="css/styles.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Manrope', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <div id="app" class="max-w-md mx-auto p-4">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold">My Money</h1>
+            <button id="theme-toggle" class="p-2 rounded-full focus:outline-none text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800">
+                <span class="material-symbols-outlined">light_mode</span>
+            </button>
+        </header>
+
+        <!-- Dashboard -->
+        <main id="dashboard-screen">
+            <!-- Balance Section -->
+            <section class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md mb-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 class="text-sm text-gray-500 dark:text-gray-400">Saldo Totale</h2>
+                        <p id="total-balance" class="text-3xl font-bold">€0.00</p>
+                    </div>
+                    <button id="privacy-toggle" class="p-2 rounded-full focus:outline-none text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800">
+                        <span class="material-symbols-outlined">visibility</span>
+                    </button>
+                </div>
+                <div id="income-expense-wrapper" class="mt-4 grid grid-cols-2 gap-4">
+                    <div>
+                        <h3 class="text-sm text-gray-500 dark:text-gray-400">Entrate</h3>
+                        <p id="total-income" class="text-xl font-semibold text-green-500">€0.00</p>
+                    </div>
+                    <div>
+                        <h3 class="text-sm text-gray-500 dark:text-gray-400">Uscite</h3>
+                        <p id="total-expenses" class="text-xl font-semibold text-red-500">€0.00</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Filters Section -->
+            <section class="mb-6">
+                <h2 class="text-lg font-semibold mb-2">Filtri</h2>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="project-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Progetto</label>
+                        <select id="project-filter" name="project-filter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                            <option value="all">Tutti i Progetti</option>
+                        </select>
+                    </div>
+                    <div>
+                         <label for="period-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Periodo</label>
+                        <select id="period-filter" name="period-filter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md">
+                            <option value="all">Sempre</option>
+                            <option value="this-month">Questo Mese</option>
+                            <option value="last-month">Mese Scorso</option>
+                            <option value="this-year">Anno Corrente</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Filtered Balance -->
+            <section class="bg-blue-50 dark:bg-blue-900/50 p-4 rounded-lg shadow-sm">
+                 <h3 class="text-sm text-gray-600 dark:text-blue-200">Saldo Filtrato</h3>
+                 <p id="filtered-balance" class="text-2xl font-bold text-blue-800 dark:text-white">€0.00</p>
+            </section>
+        </main>
+
+        <!-- Events List Screen -->
+        <main id="events-list-screen" class="hidden">
+             <section class="mb-4">
+                <h2 class="text-xl font-bold mb-4">Eventi</h2>
+            </section>
+            <section id="events-list" class="space-y-4">
+                <!-- Event items will be dynamically inserted here -->
+            </section>
+            <footer class="mt-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md sticky bottom-4">
+                <p class="text-lg font-bold">Totale Selezionato: <span id="selected-total">€0.00</span></p>
+            </footer>
+            <button id="new-event-btn" class="fixed bottom-20 right-5 bg-blue-500 text-white p-4 rounded-full shadow-lg">
+                <span class="material-symbols-outlined">add</span>
+            </button>
+        </main>
+
+        <!-- Event Detail Screen -->
+        <main id="event-detail-screen" class="hidden">
+            <header class="flex items-center mb-6">
+                <button id="back-to-events-btn" class="p-2 rounded-full mr-2">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                </button>
+                <h2 id="event-form-title" class="text-xl font-bold">Nuovo Evento</h2>
+            </header>
+            <form id="event-form" class="space-y-4">
+                <input type="hidden" id="event-id">
+                <div>
+                    <label for="event-project" class="block text-sm font-medium">Progetto</label>
+                    <select id="event-project" required class="mt-1 block w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"></select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="event-date" class="block text-sm font-medium">Data</label>
+                        <input type="date" id="event-date" required class="mt-1 block w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                    </div>
+                    <div>
+                        <label for="event-location" class="block text-sm font-medium">Luogo</label>
+                        <input type="text" id="event-location" required class="mt-1 block w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                    </div>
+                </div>
+                <div>
+                    <label for="event-compensation" class="block text-sm font-medium">Compenso</label>
+                    <input type="number" id="event-compensation" required class="mt-1 block w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600" placeholder="0.00">
+                </div>
+                <div class="flex items-center justify-between">
+                    <label for="event-paid" class="block text-sm font-medium">Compenso Pagato?</label>
+                    <input type="checkbox" id="event-paid" class="h-6 w-6 rounded">
+                </div>
+                <div class="flex items-center justify-between">
+                    <label for="event-invoiced" class="block text-sm font-medium">Compenso Fatturato?</label>
+                    <input type="checkbox" id="event-invoiced" class="h-6 w-6 rounded">
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold">Spese</h3>
+                    <div id="expenses-list" class="space-y-2 mt-2"></div>
+                    <button type="button" id="add-expense-btn" class="mt-2 text-sm text-blue-500">+ Aggiungi Spesa</button>
+                </div>
+                <div>
+                    <label for="event-notes" class="block text-sm font-medium">Note</label>
+                    <textarea id="event-notes" rows="3" class="mt-1 block w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"></textarea>
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <button type="button" id="cancel-event-btn" class="px-4 py-2 rounded">Annulla</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded">Salva Evento</button>
+                </div>
+            </form>
+        </main>
+
+        <!-- Projects Screen -->
+        <main id="projects-screen" class="hidden">
+            <h2 class="text-xl font-bold mb-4">Progetti</h2>
+            <section id="projects-list" class="space-y-4"></section>
+            <footer class="mt-6 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-md sticky bottom-4">
+                <p class="text-lg font-bold">Totale Selezionato: <span id="selected-projects-total">€0.00</span></p>
+            </footer>
+             <button id="new-project-btn" class="fixed bottom-20 right-5 bg-blue-500 text-white p-4 rounded-full shadow-lg">
+                <span class="material-symbols-outlined">add</span>
+            </button>
+        </main>
+
+        <!-- Project Detail Screen -->
+        <main id="project-detail-screen" class="hidden">
+            <header class="flex items-center mb-6">
+                <button id="back-to-projects-btn" class="p-2 rounded-full mr-2">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                </button>
+                <h2 id="project-form-title" class="text-xl font-bold">Nuovo Progetto</h2>
+            </header>
+            <form id="project-form" class="space-y-4">
+                <input type="hidden" id="project-id">
+                <div>
+                    <label for="project-name" class="block text-sm font-medium">Nome Progetto</label>
+                    <input type="text" id="project-name" required class="mt-1 block w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                </div>
+                <div>
+                    <label for="project-icon" class="block text-sm font-medium">Icona</label>
+                    <input type="text" id="project-icon" required class="mt-1 block w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600" placeholder="es., ✨">
+                </div>
+                <div>
+                    <label for="project-description" class="block text-sm font-medium">Descrizione</label>
+                    <textarea id="project-description" rows="3" class="mt-1 block w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600"></textarea>
+                </div>
+                <div class="flex justify-end space-x-4">
+                    <button type="button" id="cancel-project-btn" class="px-4 py-2 rounded">Annulla</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded">Salva Progetto</button>
+                </div>
+            </form>
+        </main>
+
+        <!-- Profile Screen -->
+        <main id="profile-screen" class="hidden">
+            <h2 class="text-xl font-bold mb-4">Profilo</h2>
+            <div class="space-y-4">
+                <div>
+                    <label for="user-type" class="block text-sm font-medium">Tipo Utente</label>
+                    <select id="user-type" class="mt-1 block w-full p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600">
+                        <option value="individual">Individuale</option>
+                        <option value="business">Azienda</option>
+                    </select>
+                </div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    Il filtro per tipo di utente sarà implementato in una versione futura.
+                </p>
+            </div>
+        </main>
+
+        <!-- Navigation -->
+        <nav class="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-gray-200 dark:bg-gray-800 p-2 flex justify-around rounded-t-lg shadow-t">
+            <button data-screen="dashboard-screen" class="nav-button active p-2 text-center w-full">
+                <span class="material-symbols-outlined">dashboard</span>
+                <span class="block text-xs">Dashboard</span>
+            </button>
+            <button data-screen="events-list-screen" class="nav-button p-2 text-center w-full">
+                <span class="material-symbols-outlined">list</span>
+                <span class="block text-xs">Eventi</span>
+            </button>
+             <button data-screen="projects-screen" class="nav-button p-2 text-center w-full">
+                <span class="material-symbols-outlined">workspaces</span>
+                <span class="block text-xs">Progetti</span>
+            </button>
+            <button data-screen="profile-screen" class="nav-button p-2 text-center w-full">
+                <span class="material-symbols-outlined">person</span>
+                <span class="block text-xs">Profilo</span>
+            </button>
+        </nav>
+    </div>
+    <script src="js/app.js"></script>
+</body>
+</html>
