@@ -205,12 +205,12 @@ class App {
         const selectedPeriod = document.getElementById('period-filter').value;
         const now = new Date();
 
-        let filteredEvents = this.events;
-
-        // Filter by project
-        if (this.projectFilterIds.size > 0) {
-            filteredEvents = filteredEvents.filter(event => this.projectFilterIds.has(event.projectId));
+        // If no project is selected, return no events.
+        if (this.projectFilterIds.size === 0) {
+            return [];
         }
+
+        let filteredEvents = this.events.filter(event => this.projectFilterIds.has(event.projectId));
 
         // Filter by period
         switch (selectedPeriod) {
@@ -266,7 +266,34 @@ class App {
         }
 
         this.renderUnpaidExpenses();
+        this.renderUnpaidEvents();
         this.renderEventsList();
+    }
+
+    renderUnpaidEvents() {
+        const unpaidListEl = document.getElementById('unpaid-events-list');
+        unpaidListEl.innerHTML = '';
+
+        const unpaidEvents = this.events.filter(event => !event.compensationPaid);
+
+        if (unpaidEvents.length === 0) {
+            unpaidListEl.innerHTML = `<p class="text-sm text-gray-500 dark:text-gray-400">Nessun evento da pagare.</p>`;
+            return;
+        }
+
+        unpaidEvents.forEach(event => {
+            const project = this.projects.find(p => p.id === event.projectId);
+            const eventEl = document.createElement('div');
+            eventEl.className = 'bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm flex justify-between items-center';
+            eventEl.innerHTML = `
+                <div>
+                    <p class="font-semibold">${project.icon} ${project.name} - ${event.location}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">${event.date.toLocaleDateString('it-IT')}</p>
+                </div>
+                <div class="text-orange-500 font-bold">€${event.compensation.toFixed(2)}</div>
+            `;
+            unpaidListEl.appendChild(eventEl);
+        });
     }
 
     renderUnpaidExpenses() {
