@@ -199,31 +199,32 @@ class App {
 
 
     handleEventClick(event) {
-        const eventItem = event.target.closest('.event-item');
-        if (!eventItem) return;
+        const editButton = event.target.closest('.edit-event-btn');
+        const deleteButton = event.target.closest('.delete-event-btn');
+        const selectCheckbox = event.target.closest('.event-select-checkbox');
 
-        if (event.detail === 1) {
-            this.handleEventSelection(event);
-        } else if (event.detail === 2) {
-             const eventId = parseInt(eventItem.dataset.eventId);
-             this.openEventForm(eventId);
-        }
-    }
-
-    handleEventSelection(event) {
-        const eventItem = event.target.closest('.event-item');
-        if (!eventItem) return;
-
-        const eventId = parseInt(eventItem.dataset.eventId);
-        if (this.selectedEventIds.has(eventId)) {
-            this.selectedEventIds.delete(eventId);
-            eventItem.classList.remove('bg-blue-100', 'dark:bg-blue-900/50');
-        } else {
-            this.selectedEventIds.add(eventId);
-            eventItem.classList.add('bg-blue-100', 'dark:bg-blue-900/50');
+        if (editButton) {
+            const eventId = parseInt(editButton.dataset.eventId);
+            this.openEventForm(eventId);
+            return;
         }
 
-        this.updateSelectedTotal();
+        if (deleteButton) {
+            const eventId = parseInt(deleteButton.dataset.eventId);
+            this.deleteEvent(eventId);
+            return;
+        }
+
+        if (selectCheckbox) {
+            const eventId = parseInt(selectCheckbox.dataset.eventId);
+            if (selectCheckbox.checked) {
+                this.selectedEventIds.add(eventId);
+            } else {
+                this.selectedEventIds.delete(eventId);
+            }
+            this.updateSelectedTotal();
+            this.renderEventsList(); // Rerender to show selection style
+        }
     }
 
     updateSelectedTotal() {
@@ -247,17 +248,30 @@ class App {
 
             const eventItem = document.createElement('div');
             eventItem.dataset.eventId = event.id;
-            eventItem.className = `event-item p-4 rounded-lg shadow-md cursor-pointer border-l-4 ${isPaid ? 'border-green-500' : 'border-red-500'} bg-white dark:bg-gray-800`;
+            const isSelected = this.selectedEventIds.has(event.id);
+            eventItem.className = `event-item p-4 rounded-lg shadow-md border-l-4 ${isPaid ? 'border-green-500' : 'border-red-500'} ${isSelected ? 'bg-blue-50 dark:bg-blue-900/50' : 'bg-white dark:bg-gray-800'}`;
 
             eventItem.innerHTML = `
                 <div class="flex justify-between items-center">
                     <div>
                         <p class="text-sm text-gray-500 dark:text-gray-400">${event.date.toLocaleDateString('it-IT')}</p>
-                        <p class="font-bold">${project.icon} ${project.name}</p>
+                        <p class="font-bold">${project.icon} ${project.name} - ${event.location}</p>
                     </div>
-                    <div class.text-right">
+                    <div class="text-right">
                         <p class="text-lg font-semibold ${eventBalance >= 0 ? 'text-green-500' : 'text-red-500'}">€${eventBalance.toFixed(2)}</p>
                         <p class="text-xs ${isPaid ? 'text-green-600' : 'text-red-600'}">${isPaid ? 'Pagato' : 'Non Pagato'}</p>
+                    </div>
+                </div>
+                <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                    <div>
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" class="event-select-checkbox h-5 w-5 rounded" data-event-id="${event.id}" ${isSelected ? 'checked' : ''}>
+                            <span class="text-sm">Seleziona</span>
+                        </label>
+                    </div>
+                    <div class="space-x-2">
+                        <button class="edit-event-btn text-sm py-1 px-3 rounded bg-blue-500 text-white" data-event-id="${event.id}">Modifica</button>
+                        <button class="delete-event-btn text-sm py-1 px-3 rounded bg-red-500 text-white" data-event-id="${event.id}">Elimina</button>
                     </div>
                 </div>
             `;
@@ -353,6 +367,13 @@ class App {
 
         this.updateDashboard();
         this.navigateTo('events-list-screen');
+    }
+
+    deleteEvent(eventId) {
+        if (confirm('Sei sicuro di voler eliminare questo evento?')) {
+            this.events = this.events.filter(event => event.id !== eventId);
+            this.updateDashboard();
+        }
     }
 
     renderProjectsList() {
