@@ -35,13 +35,59 @@ class App {
         this.init();
     }
 
+    saveData() {
+        const data = {
+            projects: this.projects,
+            // Dates are not directly serializable, convert to ISO string
+            events: this.events.map(event => ({
+                ...event,
+                date: event.date.toISOString(),
+            })),
+            userType: this.userType,
+            isPrivacyMode: this.isPrivacyMode,
+            theme: document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+        };
+        localStorage.setItem('myMoneyData', JSON.stringify(data));
+    }
+
+    loadData() {
+        const dataString = localStorage.getItem('myMoneyData');
+        if (dataString) {
+            const data = JSON.parse(dataString);
+            this.projects = data.projects.map(p => new Project(p.id, p.name, p.icon, p.description));
+            // Convert ISO strings back to Date objects
+            this.events = data.events.map(e => new Event(
+                e.id, e.projectId, new Date(e.date), e.location, e.compensation,
+                e.compensationPaid, e.compensationInvoiced, e.expenses, e.notes
+            ));
+            this.userType = data.userType || 'individual';
+            this.isPrivacyMode = data.isPrivacyMode || false;
+
+            // Apply theme
+            if (data.theme === 'dark') {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+            // Update theme toggle icon text based on the loaded theme
+            const icon = document.querySelector('#theme-toggle span');
+            icon.textContent = document.documentElement.classList.contains('dark') ? 'light_mode' : 'dark_mode';
+
+            return true; // Data was loaded
+        }
+        return false; // No data found
+    }
+
     init() {
-        this.loadSampleData();
+        if (!this.loadData()) {
+            this.loadSampleData();
+        }
         this.setupEventListeners();
         this.updateDashboard();
         this.populateProjectFilter();
         this.renderEventsList();
         this.renderProjectsList();
+        document.getElementById('user-type').value = this.userType;
     }
 
     loadSampleData() {
@@ -111,11 +157,13 @@ class App {
         html.classList.toggle('dark');
         const icon = document.querySelector('#theme-toggle span');
         icon.textContent = html.classList.contains('dark') ? 'light_mode' : 'dark_mode';
+        this.saveData();
     }
 
     togglePrivacyMode() {
         this.isPrivacyMode = !this.isPrivacyMode;
         this.updateDashboard();
+        this.saveData();
     }
 
     populateProjectFilter() {
@@ -365,6 +413,7 @@ class App {
         document.getElementById('project-filter').value = 'all';
         document.getElementById('period-filter').value = 'all';
 
+        this.saveData();
         this.updateDashboard();
         this.navigateTo('events-list-screen');
     }
@@ -372,6 +421,7 @@ class App {
     deleteEvent(eventId) {
         if (confirm('Sei sicuro di voler eliminare questo evento?')) {
             this.events = this.events.filter(event => event.id !== eventId);
+            this.saveData();
             this.updateDashboard();
         }
     }
@@ -385,10 +435,11 @@ class App {
             const income = projectEvents.filter(e => e.compensationPaid).reduce((sum, e) => sum + e.compensation, 0);
             const expenses = projectEvents.reduce((sum, e) => sum + e.expenses.reduce((s, exp) => s + exp.amount, 0), 0);
             const balance = income - expenses;
+            const isSelected = this.selectedProjectIds.has(project.id);
 
             const projectItem = document.createElement('div');
             projectItem.dataset.projectId = project.id;
-            projectItem.className = 'project-item p-4 rounded-lg shadow-md cursor-pointer bg-white dark:bg-gray-800';
+            projectItem.className = `project-item p-4 rounded-lg shadow-md ${isSelected ? 'bg-blue-50 dark:bg-blue-900/50' : 'bg-white dark:bg-gray-800'}`;
 
             projectItem.innerHTML = `
                 <div class="flex justify-between items-center">
@@ -401,28 +452,70 @@ class App {
                         <span class="text-xs text-gray-500">Saldo</span>
                     </div>
                 </div>
+                 <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                    <div>
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" class="project-select-checkbox h-5 w-5 rounded" data-project-id="${project.id}" ${isSelected ? 'checked' : ''}>
+                            <span class="text-sm">Seleziona</span>
+                        </label>
+                    </div>
+                    <div class="space-x-2">
+                        <button class="edit-project-btn text-sm py-1 px-3 rounded bg-blue-500 text-white" data-project-id="${project.id}">Modifica</button>
+                        <button class="delete-project-btn text-sm py-1 px-3 rounded bg-red-500 text-white" data-project-id="${project.id}">Elimina</button>
+                    </div>
+                </div>
             `;
             projectsListEl.appendChild(projectItem);
         });
     }
 
-    handleProjectClick(event) {
-        const projectItem = event.target.closest('.project-item');
-        if (!projectItem) return;
+    deleteProject(projectId) {
+        const projectName = this.projects.find(p => p.id === projectId)?.name || 'questo progetto';
+        const associatedEvents = this.events.filter(e => e.projectId === projectId);
 
-        if (event.detail === 2) {
-            const projectId = parseInt(projectItem.dataset.projectId);
+        let confirmationMessage = `Sei sicuro di voler eliminare "${projectName}"?`;
+        if (associatedEvents.length > 0) {
+            confirmationMessage += ` Verranno eliminati anche ${associatedEvents.length} eventi associati.`;
+        }
+
+        if (confirm(confirmationMessage)) {
+            this.projects = this.projects.filter(p => p.id !== projectId);
+            this.events = this.events.filter(e => e.projectId !== projectId);
+            this.selectedProjectIds.delete(projectId);
+
+            this.saveData();
+            this.renderProjectsList();
+            this.populateProjectFilter(); // Update filters in case a project was removed
+            this.updateDashboard();     // Recalculate dashboard totals
+        }
+    }
+
+    handleProjectClick(event) {
+        const editButton = event.target.closest('.edit-project-btn');
+        const deleteButton = event.target.closest('.delete-project-btn');
+        const selectCheckbox = event.target.closest('.project-select-checkbox');
+
+        if (editButton) {
+            const projectId = parseInt(editButton.dataset.projectId);
             this.openProjectForm(projectId);
-        } else {
-            const projectId = parseInt(projectItem.dataset.projectId);
-            if (this.selectedProjectIds.has(projectId)) {
-                this.selectedProjectIds.delete(projectId);
-                projectItem.classList.remove('bg-blue-100', 'dark:bg-blue-900/50');
-            } else {
+            return;
+        }
+
+        if (deleteButton) {
+            const projectId = parseInt(deleteButton.dataset.projectId);
+            this.deleteProject(projectId);
+            return;
+        }
+
+        if (selectCheckbox) {
+            const projectId = parseInt(selectCheckbox.dataset.projectId);
+            if (selectCheckbox.checked) {
                 this.selectedProjectIds.add(projectId);
-                projectItem.classList.add('bg-blue-100', 'dark:bg-blue-900/50');
+            } else {
+                this.selectedProjectIds.delete(projectId);
             }
             this.updateSelectedProjectsTotal();
+            this.renderProjectsList(); // Rerender to show selection style
         }
     }
 
@@ -473,6 +566,7 @@ class App {
             this.projects.push(new Project(...Object.values(projectData)));
         }
 
+        this.saveData();
         this.renderProjectsList();
         this.populateProjectFilter();
         this.updateDashboard();
@@ -481,6 +575,7 @@ class App {
 
     handleUserTypeChange(event) {
         this.userType = event.target.value;
+        this.saveData();
         console.log(`Tipo utente cambiato in: ${this.userType}`);
     }
 }
